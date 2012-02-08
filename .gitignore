@@ -1,0 +1,7 @@
+*~
+*.egg-info
+*.pyc
+*.pyo
+*.bak
+*.egg
+.tox
