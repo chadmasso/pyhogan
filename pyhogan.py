@@ -1,6 +1,7 @@
 import re
 import sys
 import json
+from pprint import pprint
 
 
 def walk(tree):
@@ -33,25 +34,29 @@ def chooseMethod(s):
 
 def section(nodes, id, method, start, end, tags):
     return 'if(_.s(_.' + method + '("' + esc(id) + '",c,p,1),' + \
-        'c,p,0,' + start + ',' + end + ',"' + tags + '")){' + \
-        '_.rs(c,p,' + 'function(c,p,_){' + walk(nodes) + '});c.pop();}'
+           'c,p,0,' + start + ',' + end + ', "' + tags + '")){' + \
+           'b += _.rs(c,p,' + \
+           'function(c,p){ var b = "";' + \
+           walk(nodes) + \
+           'return b;});c.pop();}' + \
+           'else{b += _.b; _.b = ""};'
 
-
-def invertedSection(nodes, id, method):
-    return ('if(!_.s(_.' + method + '("' + esc(id) + 
-            '",c,p,1),c,p,1,0,0,"")){' + walk(nodes) + '};')
+def invertedSection(self, nodes, id, method):
+    return 'if (!_.s(_.' + method + '("' + esc(id) + '",c,p,1),c,p,1,0,0,"")){' +\
+           walk(nodes) +\
+           '};'
 
 def partial(tok):
-    return '_.b(_.rp("' +  esc(tok.n) + '",c,p,"' + tok.get('indent','')+'"));'
+    return 'b += _.rp('+json.dumps(tok['n'])+',c,p,"'+(tok['indent']or'')+'");';
 
 def tripleStache(id, method):
-    return '_.b(_.t(_.' + method + '(' + json.dumps(id) + ',c,p,0)));'
+    return 'b += (_.' + method + '(' + json.dumps(id) + ',c,p,0));';
 
 def variable(id, method):
-    return '_.b(_.v(_.' + method + '("' + esc(id) + '",c,p,0)));'
+    return 'b += (_.v(_.'+method+'('+json.dumps(id)+',c,p,0)));';
 
 def text(id):
-    return '_.b(' + json.dumps(id) + ');';
+    return 'b += ' + json.dumps(id) + ';';
 
 
 class Compiler(object):
@@ -147,6 +152,8 @@ class Compiler(object):
         i = 0
         
         while i < text_len:
+            if text[i] == '\n':
+                print i, text[i-1]
             if state == IN_TEXT:
                 if self.tagChange(otag, text, i):
                     i -= 1
@@ -169,11 +176,15 @@ class Compiler(object):
                     i = changeDelimiters(text, i);
                     state = IN_TEXT;
                 else:
+                    #if (tag):
+                    #    i += 1
+
                     state = IN_TAG
 
                 seenTag = i;
             else:
                 if self.tagChange(ctag, text, i):
+                    print '1--', tagType
                     tokens.append(
                         {'tag': tagType, 
                          'n': buf.strip(),
@@ -183,11 +194,12 @@ class Compiler(object):
                                                   else i + len(otag)
                          })
                     buf = ''
-                    i += len(ctag) - 1
+                    i += len(ctag)-1
                     state = IN_TEXT
                     if tagType == '{':
                         if ctag == '}}':
-                            i += 1
+                            #i += 1
+                            pass
                         else:
                             cleanTripleStache(tokens[tokens.length - 1])
                 else:
@@ -258,13 +270,12 @@ class Compiler(object):
     def parse(self, tokens, text, options={}):
         return self.buildTree(tokens, '', [], [])
 
-    def writeCode(self, tree):
-        return 'var _=this;_.b(i=i||"");' + walk(tree) + 'return _.fl();'
-
-    def compile(self, text, hogan=True):
+    def compile(self, text, hogan=True, verbose=False):
         tokens = self.scan(text)
+        if verbose:
+            pprint (tokens)
         tree = self.parse(tokens, text)
-        code = 'function(c,p,i){var _=this;_.b(i=i||"");%sreturn _.fl()}'%\
+        code = 'function(c,p,i){i=i || "";var b=i+"";var _ = this;%s return b}'%\
             walk(tree)
         if hogan:
             return 'new Hogan.Template(%s,"",Hogan)'%code
@@ -272,8 +283,8 @@ class Compiler(object):
             return code
 
 
-def compile(text, hogan=True):
-    return Compiler(text).compile(text, hogan)
+def compile(text, hogan=True, verbose=False):
+    return Compiler(text).compile(text, hogan, verbose)
 
 
 def main():
