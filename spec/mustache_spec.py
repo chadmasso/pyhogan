@@ -10,7 +10,8 @@ ROOT = os.path.join(SPEC, '..')
 
 HOGAN = open(os.path.join(SPEC, 'hogan-1.0.5.common.js'), 'rb').read();
 
-NODE_PATH = '/home/fafhrd/opt/bin/node'
+#NODE_PATH = '/home/fafhrd/opt/bin/node'
+NODE_PATH = 'node'
 
 sys.path.append(ROOT)
 
@@ -46,15 +47,29 @@ var TEMPLATE = %(tmpl)s;
 
 var partial = {partial: %(partial)s};
 
-console.log(TEMPLATE.render(%(name)s));
+console.log(TEMPLATE.render(%(name)s, partial));
 } catch (e) {
    console.log(e);
 }
 """
 
-print "Testing in V8 "
+JS2 = """%(hogan)s
+
+try {
+var TEMPLATE = %(tmpl)s;
+
+console.log(Hogan.compile(TEMPLATE, {asString: true}));
+} catch (e) {
+   console.log(e);
+}
+"""
+
 
 tests = sys.argv[1:]
+
+total = 0
+success = 0
+failure = 0
 
 for name in sorted(os.listdir(FILES)):
   if name.endswith('.mustache'):
@@ -71,13 +86,33 @@ for name in sorted(os.listdir(FILES)):
       'partial': json.dumps(partial),
       'hogan': HOGAN
       }
+    #print js
+    #break
 
     res = run_js(js).strip()
+    expect = expect.strip()
     print name, '...',
     if res == expect:
       print 'passed'
+      success += 1
     else:
       print 'FAILED'
+      failure += 1
+
+      if tests:
+
+        js = JS2%{
+          'name': name,
+          'tmpl': json.dumps(template),
+          'view': view,
+          'partial': json.dumps(partial),
+          'hogan': HOGAN
+          }
+
+        print run_js(js).strip()
+        print '=============================='
+
+    total += 1
 
     if tests:
       print pyhogan.compile(template)
@@ -86,3 +121,5 @@ for name in sorted(os.listdir(FILES)):
       print 'expect: ----------------------'
       print expect
       print '=========================='
+
+print 'Total: %s, success: %s, failures: %s'%(total, success, failure)

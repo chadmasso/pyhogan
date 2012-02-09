@@ -1,7 +1,7 @@
 import re
+import cgi
 import sys
-import json
-from pprint import pprint
+from json import dumps
 
 
 def walk(tree):
@@ -11,19 +11,21 @@ def walk(tree):
         tag = tree[i]['tag']
         if tag == '#':
             code.append(section(
-                    tree[i].nodes, tree[i].n, chooseMethod(tree[i].n),
-                    tree[i].i, tree[i].end, tree[i].otag + " " + tree[i].ctag))
+                tree[i]['nodes'], tree[i]['n'], chooseMethod(tree[i]['n']),
+                tree[i]['i'], tree[i]['end'],
+                tree[i]['otag']+" "+tree[i]['ctag']))
         elif tag == '^':
-            code.append(invertedSection(tree[i].nodes, tree[i].n,
-                                        chooseMethod(tree[i].n)))
+            code.append(invertedSection(tree[i]['nodes'], tree[i]['n'],
+                                        chooseMethod(tree[i]['n'])))
         elif tag == '<' or tag == '>':
             code.append(partial(tree[i]))
         elif tag == '{' or tag == '&':
             code.append(tripleStache(tree[i]['n'], chooseMethod(tree[i]['n'])))
-        elif tag == '\n':
-            code.append(text('"\\n"' + ('' if len(tree)-1 == i else ' + i')))
+        elif tag is None and tree[i]['text'] == '\n':
+            code.append(text_eof('"\\n"' +
+                                 ('' if len(tree)-1 == i else ' + i')))
         elif tag == '_v':
-            code.append(variable(tree[i].n, chooseMethod(tree[i].n)))
+            code.append(variable(tree[i]['n'], chooseMethod(tree[i]['n'])))
         elif tag is None:
             code.append(text(tree[i]['text']))
 
@@ -33,106 +35,86 @@ def chooseMethod(s):
     return 'd' if '.' in s else 'f'
 
 def section(nodes, id, method, start, end, tags):
-    return 'if(_.s(_.' + method + '("' + esc(id) + '",c,p,1),' + \
-           'c,p,0,' + start + ',' + end + ', "' + tags + '")){' + \
+    return 'if(_.s(_.' + method + '(' + dumps(id) + ',c,p,1),' + \
+           'c,p,0,' + str(start) + ',' + str(end+1) + ', "' + tags + '")){' + \
            'b += _.rs(c,p,' + \
            'function(c,p){ var b = "";' + \
            walk(nodes) + \
            'return b;});c.pop();}' + \
            'else{b += _.b; _.b = ""};'
 
-def invertedSection(self, nodes, id, method):
-    return 'if (!_.s(_.' + method + '("' + esc(id) + '",c,p,1),c,p,1,0,0,"")){' +\
-           walk(nodes) +\
-           '};'
+def invertedSection(nodes, id, method):
+    return 'if (!_.s(_.'+method+'('+dumps(id)+',c,p,1),c,p,1,0,0,"")){' +\
+           walk(nodes) + '};'
 
 def partial(tok):
-    return 'b += _.rp('+json.dumps(tok['n'])+',c,p,"'+(tok['indent']or'')+'");';
+    return 'b += _.rp(%s,c,p,"%s");'%(dumps(tok['n']),tok.get('indent',''))
 
 def tripleStache(id, method):
-    return 'b += (_.' + method + '(' + json.dumps(id) + ',c,p,0));';
+    return 'b += (_.%s(%s,c,p,0));'%(method, dumps(id))
+        
 
 def variable(id, method):
-    return 'b += (_.v(_.'+method+'('+json.dumps(id)+',c,p,0)));';
+    return 'b += (_.v(_.%s(%s,c,p,0)));'%(method, dumps(id))
+
+def text_eof(id):
+    return 'b += %s;'%id
 
 def text(id):
-    return 'b += ' + json.dumps(id) + ';';
+    return 'b += %s;'%dumps(id)
 
 
 class Compiler(object):
 
     rIsWhitespace = re.compile('\S')
-    rQuot = '\"'
-    rNewline =  '\n',
-    rCr = '\r',
-    rSlash = '\\',
     tagTypes = {'#': 1, '^': 2, '/': 3,  '!': 4, '>': 5,
                 '<': 6, '=': 7, '_v': 8, '{': 9, '&': 10}
 
-    def __init__(self, f):
-        self.f = f
-
     def scan(self, text, delimiters=[]):
-
-        def lineIsWhitespace():
+        def lineIsWhitespace(tokens):
             isAllWhitespace = True
             for j in range(lineStart, len(tokens)):
-                try:
-                    isAllWhitespace = (
-                        (tokens[j]['tag'] and
-                         (self.tagTypes[tokens[j]['tag']] < self.tagTypes['_v']))
-                        or
-                        (not tokens[j]['tag'] and 
-                         (self.rIsWhitespace.match(tokens[j]['text']) is None)))
-                except:
-                    print '1=========='
-                    pprint (tokens)
-                    print '1----------'
-                    pprint (tokens[j])
-                    raise
+                isAllWhitespace = (
+                    (tokens[j]['tag'] and
+                     (self.tagTypes[tokens[j]['tag']] < self.tagTypes['_v']))
+                    or
+                    (not tokens[j]['tag'] and 
+                     (self.rIsWhitespace.match(tokens[j]['text']) is None)))
                 if not isAllWhitespace:
                     return False
 
             return isAllWhitespace
 
-        def filterLine(buf, haveSeenTag, noNewLine=False):
-            if len(buf) > 0:
-                tokens.append({'text': buf, 'tag': None})
-                buf = ''
-
-            if (haveSeenTag and lineIsWhitespace()):
+        def filterLine(tokens, haveSeenTag, noNewLine=False):
+            if (haveSeenTag and lineIsWhitespace(tokens)):
+                j = lineStart
                 l = len(tokens);
-                for j in range(lineStart, l):
+                while j < l:
                     if not tokens[j]['tag']:
                         next_token = tokens[j+1]
                         if next_token['tag'] == '>':
                             next_token['indent'] = str(tokens[j]['text'])
 
-                    # ?
-                    tokens.splice(j, 1);
+                        del tokens[j]
+                        
+                        l = len(tokens)
+                    else:
+                        j += 1
 
             elif not noNewLine:
                 tokens.append({'text':'\n', 'tag':None});
 
-            # seenTag, lineStart, buf
-            return False, len(tokens), buf
-
-        def changeDelimiters(self, text, index):
+        def changeDelimiters(text, index):
             close = '=' + ctag
-            closeIndex = text.indexOf(close, index)
-            delimiters = trim(
-                text.substring(text.indexOf('=', index) + 1, closeIndex)
-                ).split(' ')
+            closeIndex = text.index(close, index)
+            delimiters = text[text.index('=', index) + 1:
+                              closeIndex].strip().split(' ')
 
-            otag = delimiters[0]
-            ctag = delimiters[1]
+            return closeIndex + len(close)-1, delimiters[0], delimiters[1]
 
-            return closeIndex + close.length - 1
-
-        #if (delimiters):
-        #    delimiters = delimiters.split(' ');
-        #    otag = delimiters[0];
-        #    ctag = delimiters[1];
+        if (delimiters):
+            otag = delimiters[0];
+            ctag = delimiters[1];
 
         text_len = len(text)
         IN_TEXT = 0
@@ -149,11 +131,10 @@ class Compiler(object):
         otag = '{{'
         ctag = '}}'
 
-        i = 0
+        i = -1
         
-        while i < text_len:
-            if text[i] == '\n':
-                print i, text[i-1]
+        while i < text_len-1:
+            i += 1
             if state == IN_TEXT:
                 if self.tagChange(otag, text, i):
                     i -= 1
@@ -164,30 +145,35 @@ class Compiler(object):
                     state = IN_TAG_TYPE
                 else:
                     if (text[i] == '\n'):
-                        seenTag, lineStart, buf = filterLine(buf, seenTag)
+                        if len(buf) > 0:
+                            tokens.append({'text': buf, 'tag': None})
+                            buf = ''
+
+                        filterLine(tokens, seenTag)
+                        lineStart = len(tokens)
+                        seenTag = False
                     else:
                         buf += text[i]
 
             elif state == IN_TAG_TYPE:
                 i += len(otag)-1;
-                tag = self.tagTypes.get(text[i])
-                tagType = text[i] if tag else '_v';
+                tag = self.tagTypes.get(text[i+1])
+                tagType = text[i+1] if tag else '_v';
                 if tagType == '=':
-                    i = changeDelimiters(text, i);
+                    i, otag, ctag = changeDelimiters(text, i);
                     state = IN_TEXT;
                 else:
-                    #if (tag):
-                    #    i += 1
+                    if tagType == '{':
+                        i += 1
 
                     state = IN_TAG
 
                 seenTag = i;
             else:
                 if self.tagChange(ctag, text, i):
-                    print '1--', tagType
                     tokens.append(
                         {'tag': tagType, 
-                         'n': buf.strip(),
+                         'n': buf.strip(' \t\n\r\f\v#&/^>'),
                          'otag': otag, 
                          'ctag': ctag,
                          'i': seenTag - len(ctag) if tagType == '/' 
@@ -198,24 +184,26 @@ class Compiler(object):
                     state = IN_TEXT
                     if tagType == '{':
                         if ctag == '}}':
-                            #i += 1
-                            pass
+                            i += 1
                         else:
-                            cleanTripleStache(tokens[tokens.length - 1])
+                            self.cleanTripleStache(tokens[-1])
                 else:
                     buf += text[i]
 
-            i += 1;
-
-        filterLine(buf, seenTag, True)
+        if len(buf) > 0:
+            tokens.append({'text': buf, 'tag': None})
+            buf = ''
+        filterLine(tokens, seenTag, True)
         return tokens
+
+    def cleanTripleStache(self, token):
+        if token['n'][len(token['n'])-1:] == '}':
+            token['n'] = token['n'][0: len(token['n']) - 1]
 
     def tagChange(self, tag, text, index):
         if text[index] != tag[0]:
             return False
 
-        i = 1
-        l = len(tag)
         for i in range(0, len(tag)):
             if text[index + i] != tag[i]:
                 return False
@@ -233,9 +221,10 @@ class Compiler(object):
             
             if (token['tag'] == '#' or token['tag'] == '^' 
                 or self.isOpener(token, customTags)):
-                stack.push(token);
-                token.nodes = buildTree(tokens, token.tag, stack, customTags);
-                instructions.push(token);
+                stack.append(token)
+                token['nodes'] = self.buildTree(
+                    tokens, token['tag'], stack, customTags)
+                instructions.append(token)
             elif token['tag'] == '/':
                 if (len(stack) == 0):
                     raise Exception('Closing tag without opener: /'+token['n'])
@@ -272,19 +261,17 @@ class Compiler(object):
 
     def compile(self, text, hogan=True, verbose=False):
         tokens = self.scan(text)
-        if verbose:
-            pprint (tokens)
         tree = self.parse(tokens, text)
-        code = 'function(c,p,i){i=i || "";var b=i+"";var _ = this;%s return b}'%\
-            walk(tree)
+        code = 'function(c,p,i){i=i || "";var b=i+"";var _=this;%s return b}'%\
+               walk(tree)
         if hogan:
-            return 'new Hogan.Template(%s,"",Hogan)'%code
+            return 'new Hogan.Template(%s,%s,Hogan)'%(code, dumps(text))
         else:
             return code
 
 
 def compile(text, hogan=True, verbose=False):
-    return Compiler(text).compile(text, hogan, verbose)
+    return Compiler().compile(text, hogan, verbose)
 
 
 def main():

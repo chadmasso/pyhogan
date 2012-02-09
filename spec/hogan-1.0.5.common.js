@@ -219,7 +219,7 @@ var Hogan = {};
     str = String((str === null || str === undefined) ? '' : str);
     return hChars.test(str) ?
       str
-        .replace(rAmp,'&amp;')
+        //.replace(rAmp,'&amp;')
         .replace(rLt,'&lt;')
         .replace(rGt,'&gt;')
         .replace(rApos,'&#39;')
