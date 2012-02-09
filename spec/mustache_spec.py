@@ -8,10 +8,8 @@ SPEC = os.path.split(__file__)[0]
 FILES = os.path.join(SPEC, '_files')
 ROOT = os.path.join(SPEC, '..')
 
-HOGAN = open(os.path.join(SPEC, 'hogan-1.0.5.common.js'), 'rb').read();
-
-#NODE_PATH = '/home/fafhrd/opt/bin/node'
 NODE_PATH = 'node'
+HOGAN = open(os.path.join(SPEC, 'hogan-1.0.5.common.js'), 'rb').read();
 
 sys.path.append(ROOT)
 
@@ -86,8 +84,6 @@ for name in sorted(os.listdir(FILES)):
       'partial': json.dumps(partial),
       'hogan': HOGAN
       }
-    #print js
-    #break
 
     res = run_js(js).strip()
     expect = expect.strip()
@@ -121,5 +117,6 @@ for name in sorted(os.listdir(FILES)):
       print 'expect: ----------------------'
       print expect
       print '=========================='
+
 
 print 'Total: %s, success: %s, failures: %s'%(total, success, failure)

@@ -28,6 +28,15 @@ Now you can compile your mustache templates::
     new Hogan.Template(function(c,p,i){...}
 
 
+Testing
+-------
+
+Node.js is required for tests::
+
+    $ cd pyhogen/spec/
+    $ ../../venv/python ./mustache_spec.py
+
+
 Requirements
 ------------
 
