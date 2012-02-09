@@ -52,7 +52,7 @@ def partial(tok):
 
 def tripleStache(id, method):
     return 'b += (_.%s(%s,c,p,0));'%(method, dumps(id))
-        
+
 
 def variable(id, method):
     return 'b += (_.v(_.%s(%s,c,p,0)));'%(method, dumps(id))
@@ -78,7 +78,7 @@ class Compiler(object):
                     (tokens[j]['tag'] and
                      (self.tagTypes[tokens[j]['tag']] < self.tagTypes['_v']))
                     or
-                    (not tokens[j]['tag'] and 
+                    (not tokens[j]['tag'] and
                      (self.rIsWhitespace.match(tokens[j]['text']) is None)))
                 if not isAllWhitespace:
                     return False
@@ -96,7 +96,7 @@ class Compiler(object):
                             next_token['indent'] = str(tokens[j]['text'])
 
                         del tokens[j]
-                        
+
                         l = len(tokens)
                     else:
                         j += 1
@@ -132,7 +132,7 @@ class Compiler(object):
         ctag = '}}'
 
         i = -1
-        
+
         while i < text_len-1:
             i += 1
             if state == IN_TEXT:
@@ -172,11 +172,11 @@ class Compiler(object):
             else:
                 if self.tagChange(ctag, text, i):
                     tokens.append(
-                        {'tag': tagType, 
+                        {'tag': tagType,
                          'n': buf.strip(' \t\n\r\f\v#&/^>'),
-                         'otag': otag, 
+                         'otag': otag,
                          'ctag': ctag,
-                         'i': seenTag - len(ctag) if tagType == '/' 
+                         'i': seenTag - len(ctag) if tagType == '/'
                                                   else i + len(otag)
                          })
                     buf = ''
@@ -218,8 +218,8 @@ class Compiler(object):
         while len(tokens) > 0:
             token = tokens[0]
             del tokens[0]
-            
-            if (token['tag'] == '#' or token['tag'] == '^' 
+
+            if (token['tag'] == '#' or token['tag'] == '^'
                 or self.isOpener(token, customTags)):
                 stack.append(token)
                 token['nodes'] = self.buildTree(

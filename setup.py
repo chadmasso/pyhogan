@@ -4,9 +4,6 @@ from setuptools import setup, find_packages
 
 version='0.1dev'
 
-install_requires = ['setuptools']
-tests_require = install_requires + ['nose']
-
 def read(f):
     return open(os.path.join(os.path.dirname(__file__), f)).read().strip()
 
@@ -28,11 +25,9 @@ setup(name='pyhogan',
       author='Nikolay Kim',
       author_email='fafhrd91@gmail.com',
       url='https://github.com/fafhrd91/pyhogan/',
-      license='Apache 2.0',
+      license='Apache Software License',
       packages=find_packages(),
-      install_requires = install_requires,
-      tests_require = tests_require,
-      test_suite = 'nose.collector',
+      install_requires = ['setuptools'],
       include_package_data = True,
       zip_safe = False,
       entry_points = {

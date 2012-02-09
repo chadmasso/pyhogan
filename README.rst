@@ -2,7 +2,7 @@ Mustache to javascript compiler
 ===============================
 
 Mustache to javascript compiler written in python. It is based on
-twitter hogan.js compiler https://twitter.github.com/hogan.js/
+twitter hogan.js compiler http://twitter.github.com/hogan.js/
 
 `Hogan.Template` is still required for rendering.
 
