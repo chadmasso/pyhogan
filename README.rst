@@ -21,7 +21,7 @@ Installation
     $ cd pyhogan
     $ ../venv/bin/python setup.py develop
 
-Now you can compile your mustache templates::
+3. Compile your mustache templates::
 
     $ ../venv/bin/pyhogan template.mustache
 
