@@ -23,7 +23,7 @@ def walk(tree):
             code.append(tripleStache(tree[i]['n'], chooseMethod(tree[i]['n'])))
         elif tag is None and tree[i]['text'] == '\n':
             code.append(text_eof('"\\n"' +
-                                 ('' if len(tree)-1 == i else ' + i')))
+                                 ('' if len(tree)-1 == i else '+i')))
         elif tag == '_v':
             code.append(variable(tree[i]['n'], chooseMethod(tree[i]['n'])))
         elif tag is None:
@@ -37,31 +37,28 @@ def chooseMethod(s):
 def section(nodes, id, method, start, end, tags):
     return 'if(_.s(_.' + method + '(' + dumps(id) + ',c,p,1),' + \
            'c,p,0,' + str(start) + ',' + str(end+1) + ', "' + tags + '")){' + \
-           'b += _.rs(c,p,' + \
-           'function(c,p){ var b = "";' + \
-           walk(nodes) + \
-           'return b;});c.pop();}' + \
-           'else{b += _.b; _.b = ""};'
+           'b+=_.rs(c,p,function(c,p){var b="";' + \
+           walk(nodes) + 'return b});c.pop()}else{b+=_.b;_.b=""};'
 
 def invertedSection(nodes, id, method):
     return 'if (!_.s(_.'+method+'('+dumps(id)+',c,p,1),c,p,1,0,0,"")){' +\
            walk(nodes) + '};'
 
 def partial(tok):
-    return 'b += _.rp(%s,c,p,"%s");'%(dumps(tok['n']),tok.get('indent',''))
+    return 'b+=_.rp(%s,c,p,"%s");'%(dumps(tok['n']),tok.get('indent',''))
 
 def tripleStache(id, method):
-    return 'b += (_.%s(%s,c,p,0));'%(method, dumps(id))
+    return 'b+=(_.%s(%s,c,p,0));'%(method, dumps(id))
 
 
 def variable(id, method):
-    return 'b += (_.v(_.%s(%s,c,p,0)));'%(method, dumps(id))
+    return 'b+=(_.v(_.%s(%s,c,p,0)));'%(method, dumps(id))
 
 def text_eof(id):
-    return 'b += %s;'%id
+    return 'b+=%s;'%id
 
 def text(id):
-    return 'b += %s;'%dumps(id)
+    return 'b+=%s;'%dumps(id)
 
 
 class Compiler(object):
@@ -262,7 +259,7 @@ class Compiler(object):
     def compile(self, text, hogan=True, verbose=False):
         tokens = self.scan(text)
         tree = self.parse(tokens, text)
-        code = 'function(c,p,i){i=i || "";var b=i+"";var _=this;%s return b}'%\
+        code = 'function(c,p,i){i=i||"";var b=i+"";var _=this;%s return b}'%\
                walk(tree)
         if hogan:
             return 'new Hogan.Template(%s,%s,Hogan)'%(code, dumps(text))
