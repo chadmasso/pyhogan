@@ -8,8 +8,9 @@ SPEC = os.path.split(__file__)[0]
 FILES = os.path.join(SPEC, '_files')
 ROOT = os.path.join(SPEC, '..')
 
+NODE_PATH = '/home/fafhrd/opt/bin/node'
 NODE_PATH = 'node'
-HOGAN = open(os.path.join(SPEC, 'hogan-1.0.5.common.js'), 'rb').read();
+HOGAN = open(os.path.join(SPEC, 'hogan-2.0.0.common.js'), 'rb').read();
 
 sys.path.append(ROOT)
 
@@ -55,8 +56,11 @@ JS2 = """%(hogan)s
 
 try {
 var TEMPLATE = %(tmpl)s;
+%(view)s
+var partial = {partial: %(partial)s};
 
-console.log(Hogan.compile(TEMPLATE, {asString: true}));
+console.log(Hogan.compile(TEMPLATE, {asString: true}), "\\n");
+console.log(Hogan.compile(TEMPLATE).render(%(name)s, partial));
 } catch (e) {
    console.log(e);
 }
